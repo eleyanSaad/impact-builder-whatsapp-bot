@@ -266,15 +266,35 @@ app.get("/webhook", (req, res) => {
 });
 
 app.post("/webhook", async (req, res) => {
+  console.log("=== WEBHOOK HIT ===");
+  console.log(JSON.stringify(req.body, null, 2));
+
   res.sendStatus(200);
+
   try {
     const message = req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-    if (!message) return;
+
+    if (!message) {
+      console.log("No message found");
+      return;
+    }
+
     const phone = message.from;
     let text = "";
-    if (message.type === "text") text = message.text.body;
-    else if (message.type === "interactive") text = message.interactive?.button_reply?.id || "";
-    if (text) await handleMessage(phone, text);
+
+    if (message.type === "text") {
+      text = message.text.body;
+    } else if (message.type === "interactive") {
+      text = message.interactive?.button_reply?.id || "";
+    }
+
+    console.log("PHONE:", phone);
+    console.log("TEXT:", text);
+
+    if (text) {
+      await handleMessage(phone, text);
+      console.log("Message processed");
+    }
   } catch (err) {
     console.error("Webhook error:", err);
   }
