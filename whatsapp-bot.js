@@ -1,13 +1,12 @@
 import express from "express";
 import fetch from "node-fetch";
 import Redis from "ioredis";
+import { getMetaConfig } from "./odoo-config.js";
 
 const app = express();
 app.use(express.json());
 
-const WA_TOKEN        = process.env.WA_TOKEN;
-const WA_PHONE_ID     = process.env.WA_PHONE_ID;
-const WA_VERIFY_TOKEN = process.env.WA_VERIFY_TOKEN;
+let WA_TOKEN, WA_PHONE_ID, WA_VERIFY_TOKEN;
 const PAYMENT_BASE    = process.env.PAYMENT_BASE_URL;
 
 const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
@@ -279,4 +278,14 @@ app.post("/webhook", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`WhatsApp ATJ bot running on port ${PORT}`));
+try {
+  const config = await getMetaConfig();
+  WA_TOKEN = config.access_token;
+  WA_PHONE_ID = config.phone_number_id;
+  WA_VERIFY_TOKEN = config.verify_token;
+  app.listen(PORT, () => console.log(`WhatsApp ATJ bot running on port ${PORT}`));
+} catch (error) {
+  console.error(`Cannot start WhatsApp bot: ${error.message}`);
+  redis.disconnect();
+  process.exitCode = 1;
+}
