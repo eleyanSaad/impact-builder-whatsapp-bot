@@ -50,18 +50,19 @@ async function clearSession(phone) {
 
 // ── WhatsApp send ───────────────────────────────────────────────────
 async function sendMessage(to, text) {
-  await fetch(`https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`, {
+  const response = await fetch(`https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${WA_TOKEN}`, "Content-Type": "application/json" },
     body: JSON.stringify({ messaging_product: "whatsapp", to, type: "text", text: { body: text, preview_url: false } }),
   });
+  if (!response.ok) throw new Error(`WhatsApp send failed (${response.status}): ${await response.text()}`);
 }
 
 async function sendButtons(to, body, buttons) {
   const chunks = [];
   for (let i = 0; i < buttons.length; i += 3) chunks.push(buttons.slice(i, i + 3));
   for (const chunk of chunks) {
-    await fetch(`https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`, {
+    const response = await fetch(`https://graph.facebook.com/v19.0/${WA_PHONE_ID}/messages`, {
       method: "POST",
       headers: { Authorization: `Bearer ${WA_TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -72,6 +73,7 @@ async function sendButtons(to, body, buttons) {
         },
       }),
     });
+    if (!response.ok) throw new Error(`WhatsApp send failed (${response.status}): ${await response.text()}`);
   }
 }
 
@@ -256,7 +258,8 @@ app.post("/webhook", async (req, res) => {
     const message = req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
     if (!message) { console.log("No message found"); return; }
 
-    const phone = message.from;
+    const phone = message.from || message.from_user_id;
+    if (!phone) { console.warn("Incoming message has no sender identifier"); return; }
     let text = "";
 
     if (message.type === "text") {
